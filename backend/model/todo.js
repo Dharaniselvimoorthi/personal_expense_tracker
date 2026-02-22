@@ -1,19 +1,11 @@
 const mongoose = require("mongoose");
 
-const todoSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    required: true
-  },
-  amount: {
-    type: Number,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ["Paid", "Unpaid"],
-    default: "Unpaid"
-  }
+const ExpenseSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    amount: { type: Number, required: true },
+    category: { type: String, required: true },
+    date: { type: String, required: true },
+    paid: { type: Boolean, default: false }
 });
 
-module.exports = mongoose.model("Todo", todoSchema);
+module.exports = mongoose.model("Expense", ExpenseSchema);

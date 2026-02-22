@@ -1,49 +1,75 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
-const Todo = require("./model/todo");
+const Expense = require("./model/todo"); // Updated Model Import
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-/* MongoDB Connection */
-mongoose.connect("mongodb://localhost:27017/expenseDB")
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
+mongoose.connect("mongodb://127.0.0.1:27017/expenseDB", {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log("MongoDB Connected ✅"))
+.catch(err => console.log("Mongo Error ❌:", err));
 
-/* GET All Expenses */
-app.get("/todos", async (req, res) => {
-  const todos = await Todo.find();
-  res.json(todos);
+/* GET all expenses */
+app.get("/expenses", async (req, res) => {
+    try {
+        const expenses = await Expense.find();
+        res.json(expenses);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-/* ADD Expense */
-app.post("/todos", async (req, res) => {
-  const newTodo = new Todo(req.body);
-  await newTodo.save();
-  res.json(newTodo);
+/* ADD expense */
+app.post("/expenses", async (req, res) => {
+    try {
+        const { name, amount, category, date } = req.body;
+        const newExpense = new Expense({
+            name,
+            amount,
+            category,
+            date,
+            paid: false
+        });
+
+        const savedExpense = await newExpense.save();
+        res.status(201).json(savedExpense);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
 });
 
-/* UPDATE Status */
-app.put("/todos/:id", async (req, res) => {
-  const updated = await Todo.findByIdAndUpdate(
-    req.params.id,
-    { status: req.body.status },
-    { new: true }
-  );
-  res.json(updated);
+/* UPDATE paid status */
+app.put("/expenses/:id", async (req, res) => {
+    try {
+        const updatedExpense = await Expense.findByIdAndUpdate(
+            req.params.id,
+            { paid: req.body.paid },
+            { new: true }
+        );
+        res.json(updatedExpense);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-/* DELETE Expense */
-app.delete("/todos/:id", async (req, res) => {
-  await Todo.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted Successfully" });
+/* DELETE expense */
+app.delete("/expenses/:id", async (req, res) => {
+    try {
+        await Expense.findByIdAndDelete(req.params.id);
+        res.json({ message: "Expense Deleted Successfully" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-/* Server */
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+/* Start Server */
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:3000 🚀`);
 });

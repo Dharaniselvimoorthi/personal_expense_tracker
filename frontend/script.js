@@ -1,23 +1,31 @@
-let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
-let darkMode = false;
+const nameInput = document.getElementById("name");
+const amountInput = document.getElementById("amount");
+const categoryInput = document.getElementById("category");
+const dateInput = document.getElementById("date");
+const addBtn = document.querySelector("button[onclick='addExpense()']"); // Or give it an ID
+const container = document.getElementById("expenseList");
 
-window.onload = function () {
-    renderExpenses();
-    updateChart();
+// Data State
+let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+
+// 1. Initialization on Load
+window.onload = () => {
+    renderAll();
 };
 
+// 2. Add Button Logic
 function addExpense() {
-    const name = document.getElementById("name").value;
-    const amount = document.getElementById("amount").value;
-    const category = document.getElementById("category").value;
-    const date = document.getElementById("date").value;
+    const name = nameInput.value;
+    const amount = amountInput.value;
+    const category = categoryInput.value;
+    const date = dateInput.value;
 
     if (!name || !amount || !category || !date) {
         alert("Fill all fields");
         return;
     }
 
-    const expense = {
+    const newExpense = {
         id: Date.now(),
         name,
         amount: Number(amount),
@@ -26,19 +34,69 @@ function addExpense() {
         paid: false
     };
 
-    expenses.push(expense);
+    expenses.push(newExpense);
     saveData();
-    renderExpenses();
-    updateChart();
-
-    document.getElementById("name").value = "";
-    document.getElementById("amount").value = "";
+    
+    // Instead of full re-render, we can just create the new card
+    createExpenseCard(newExpense); 
+    updateStats();
+    
+    // Clear inputs
+    nameInput.value = "";
+    amountInput.value = "";
 }
 
-function renderExpenses() {
-    const container = document.getElementById("expenseList");
-    container.innerHTML = "";
+// 3. Create Element Logic (Matches your Example Style)
+function createExpenseCard(exp) {
+    const card = document.createElement("div");
+    card.className = "expense-card";
 
+    const h3 = document.createElement("h3");
+    h3.textContent = exp.name;
+
+    const pAmount = document.createElement("p");
+    pAmount.textContent = `₹ ${exp.amount}`;
+
+    const pCat = document.createElement("p");
+    pCat.textContent = exp.category;
+
+    const pDate = document.createElement("p");
+    pDate.textContent = exp.date;
+
+    const badge = document.createElement("span");
+    badge.className = `badge ${exp.paid ? "badge-paid" : "badge-unpaid"}`;
+    badge.textContent = exp.paid ? "PAID" : "UNPAID";
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.textContent = "Paid";
+    toggleBtn.onclick = () => {
+        exp.paid = !exp.paid;
+        saveData();
+        // Update UI without full reload
+        badge.className = `badge ${exp.paid ? "badge-paid" : "badge-unpaid"}`;
+        badge.textContent = exp.paid ? "PAID" : "UNPAID";
+        updateStats();
+    };
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.onclick = () => {
+        expenses = expenses.filter(e => e.id !== exp.id);
+        saveData();
+        card.remove();
+        updateStats();
+    };
+
+    // Tilt effect helper
+    addTilt(card);
+
+    // Append everything
+    card.append(h3, pAmount, pCat, pDate, badge, document.createElement("br"), toggleBtn, deleteBtn);
+    container.appendChild(card);
+}
+
+// 4. Update Summary & Chart Logic
+function updateStats() {
     let total = 0;
     let paid = 0;
     let unpaid = 0;
@@ -47,46 +105,24 @@ function renderExpenses() {
         total += exp.amount;
         if (exp.paid) paid += exp.amount;
         else unpaid += exp.amount;
-
-        const card = document.createElement("div");
-        card.className = "expense-card";
-
-        card.innerHTML = `
-            <h3>${exp.name}</h3>
-            <p>₹ ${exp.amount}</p>
-            <p>${exp.category}</p>
-            <p>${exp.date}</p>
-            <span class="badge ${exp.paid ? "badge-paid" : "badge-unpaid"}">
-                ${exp.paid ? "PAID" : "UNPAID"}
-            </span>
-            <br><br>
-            <button onclick="togglePaid(${exp.id})">Paid</button>
-            <button onclick="deleteExpense(${exp.id})">Delete</button>
-        `;
-
-        addTilt(card);
-        container.appendChild(card);
     });
 
     document.getElementById("totalAmount").innerText = total;
     document.getElementById("paidAmount").innerText = paid;
     document.getElementById("unpaidAmount").innerText = unpaid;
+
+    updateChart(paid, unpaid);
 }
 
-function togglePaid(id) {
-    expenses = expenses.map(exp =>
-        exp.id === id ? { ...exp, paid: !exp.paid } : exp
-    );
-    saveData();
-    renderExpenses();
-    updateChart();
+// Helpers
+function renderAll() {
+    container.innerHTML = "";
+    expenses.forEach(exp => createExpenseCard(exp));
+    updateStats();
 }
 
-function deleteExpense(id) {
-    expenses = expenses.filter(exp => exp.id !== id);
-    saveData();
-    renderExpenses();
-    updateChart();
+function saveData() {
+    localStorage.setItem("expenses", JSON.stringify(expenses));
 }
 
 function addTilt(card) {
@@ -94,8 +130,8 @@ function addTilt(card) {
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const rotateX = -(y - rect.height/2) / 15;
-        const rotateY = (x - rect.width/2) / 15;
+        const rotateX = -(y - rect.height / 2) / 15;
+        const rotateY = (x - rect.width / 2) / 15;
         card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
     });
     card.addEventListener("mouseleave", () => {
@@ -103,30 +139,22 @@ function addTilt(card) {
     });
 }
 
-function updateChart() {
+function updateChart(paid, unpaid) {
     const canvas = document.getElementById("expenseChart");
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    let paid = expenses.filter(e => e.paid).reduce((a,b)=>a+b.amount,0);
-    let unpaid = expenses.filter(e => !e.paid).reduce((a,b)=>a+b.amount,0);
-
     ctx.fillStyle = "#00ff88";
-    ctx.fillRect(100, 250 - paid/5, 100, paid/5);
+    ctx.fillRect(100, 250 - paid / 5, 100, paid / 5);
 
     ctx.fillStyle = "#ff4d6d";
-    ctx.fillRect(300, 250 - unpaid/5, 100, unpaid/5);
+    ctx.fillRect(300, 250 - unpaid / 5, 100, unpaid / 5);
 }
 
 function toggleTheme() {
-    darkMode = !darkMode;
     document.body.classList.toggle("dark-mode");
 }
 
 function exportPDF() {
     window.print();
-}
-
-function saveData() {
-    localStorage.setItem("expenses", JSON.stringify(expenses));
 }
