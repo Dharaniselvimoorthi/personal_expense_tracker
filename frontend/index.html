@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>💎 Expense Galaxy</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="background">
+    <div class="particles"></div>
+</div>
+
+<div class="container">
+
+    <h1 class="title">💎 Expense Galaxy Dashboard</h1>
+
+    <!-- FORM -->
+    <div class="form-card">
+        <input type="text" id="name" placeholder="Expense Name">
+        <input type="number" id="amount" placeholder="Amount">
+        <input type="date" id="date">
+
+        <select id="category">
+            <option value="">Category</option>
+            <option value="Food">Food</option>
+            <option value="Travel">Travel</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Bills">Bills</option>
+        </select>
+
+        <button onclick="addExpense()">Add</button>
+    </div>
+
+    <!-- DASHBOARD STATS -->
+    <div class="stats">
+        <div class="stat-card total">
+            <h3>Total</h3>
+            <p>₹ <span id="totalAmount">0</span></p>
+        </div>
+
+        <div class="stat-card paid">
+            <h3>Paid</h3>
+            <p>₹ <span id="paidAmount">0</span></p>
+        </div>
+
+        <div class="stat-card unpaid">
+            <h3>Unpaid</h3>
+            <p>₹ <span id="unpaidAmount">0</span></p>
+        </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="controls">
+        <button onclick="toggleTheme()">🌙Theme</button>
+        <button onclick="exportPDF()">💾 Export PDF</button>
+    </div>
+
+    <!-- CHART -->
+    <div class="chart-container">
+        <canvas id="expenseChart" width="500" height="300"></canvas>
+    </div>
+
+    <!-- CARDS -->
+    <div id="expenseList" class="expense-list"></div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
