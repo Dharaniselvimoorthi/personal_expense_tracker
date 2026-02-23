@@ -1,20 +1,32 @@
+//const API = "https://your-backend-url.onrender.com/expenses";
+// If local testing use:
+ const API = "http://localhost:3000/expenses";
+
 const nameInput = document.getElementById("name");
 const amountInput = document.getElementById("amount");
 const categoryInput = document.getElementById("category");
 const dateInput = document.getElementById("date");
-const addBtn = document.querySelector("button[onclick='addExpense()']"); // Or give it an ID
 const container = document.getElementById("expenseList");
 
-// Data State
-let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+window.onload = fetchExpenses;
 
-// 1. Initialization on Load
-window.onload = () => {
-    renderAll();
-};
+/* ================= FETCH ALL ================= */
+async function fetchExpenses() {
+    try {
+        const res = await fetch(API);
+        const data = await res.json();
 
-// 2. Add Button Logic
-function addExpense() {
+        container.innerHTML = "";
+        data.reverse().forEach(exp => createExpenseCard(exp));
+        updateStats(data);
+
+    } catch (err) {
+        console.error("Fetch error:", err);
+    }
+}
+
+/* ================= ADD ================= */
+async function addExpense() {
     const name = nameInput.value;
     const amount = amountInput.value;
     const category = categoryInput.value;
@@ -25,28 +37,29 @@ function addExpense() {
         return;
     }
 
-    const newExpense = {
-        id: Date.now(),
-        name,
-        amount: Number(amount),
-        category,
-        date,
-        paid: false
-    };
+    try {
+        await fetch(API, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name,
+                amount: Number(amount),
+                category,
+                date
+            })
+        });
 
-    expenses.push(newExpense);
-    saveData();
-    
-    // Instead of full re-render, we can just create the new card
-    createExpenseCard(newExpense); 
-    updateStats();
-    
-    // Clear inputs
-    nameInput.value = "";
-    amountInput.value = "";
+        nameInput.value = "";
+        amountInput.value = "";
+
+        fetchExpenses();
+
+    } catch (err) {
+        console.error("Add error:", err);
+    }
 }
 
-// 3. Create Element Logic (Matches your Example Style)
+/* ================= CREATE CARD ================= */
 function createExpenseCard(exp) {
     const card = document.createElement("div");
     card.className = "expense-card";
@@ -67,36 +80,54 @@ function createExpenseCard(exp) {
     badge.className = `badge ${exp.paid ? "badge-paid" : "badge-unpaid"}`;
     badge.textContent = exp.paid ? "PAID" : "UNPAID";
 
+    /* ===== TOGGLE PAID ===== */
     const toggleBtn = document.createElement("button");
-    toggleBtn.textContent = "Paid";
-    toggleBtn.onclick = () => {
-        exp.paid = !exp.paid;
-        saveData();
-        // Update UI without full reload
-        badge.className = `badge ${exp.paid ? "badge-paid" : "badge-unpaid"}`;
-        badge.textContent = exp.paid ? "PAID" : "UNPAID";
-        updateStats();
+    toggleBtn.textContent = "Toggle Paid";
+    toggleBtn.onclick = async () => {
+        await fetch(`${API}/${exp._id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paid: !exp.paid })
+        });
+
+        fetchExpenses();
     };
 
+    /* ===== DELETE ===== */
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "Delete";
-    deleteBtn.onclick = () => {
-        expenses = expenses.filter(e => e.id !== exp.id);
-        saveData();
-        card.remove();
-        updateStats();
+    deleteBtn.onclick = async () => {
+
+        card.style.transform = "scale(0)";
+        card.style.opacity = "0";
+
+        setTimeout(async () => {
+            await fetch(`${API}/${exp._id}`, {
+                method: "DELETE"
+            });
+
+            fetchExpenses();
+        }, 300);
     };
 
-    // Tilt effect helper
     addTilt(card);
 
-    // Append everything
-    card.append(h3, pAmount, pCat, pDate, badge, document.createElement("br"), toggleBtn, deleteBtn);
+    card.append(
+        h3,
+        pAmount,
+        pCat,
+        pDate,
+        badge,
+        document.createElement("br"),
+        toggleBtn,
+        deleteBtn
+    );
+
     container.appendChild(card);
 }
 
-// 4. Update Summary & Chart Logic
-function updateStats() {
+/* ================= UPDATE STATS ================= */
+function updateStats(expenses) {
     let total = 0;
     let paid = 0;
     let unpaid = 0;
@@ -114,17 +145,7 @@ function updateStats() {
     updateChart(paid, unpaid);
 }
 
-// Helpers
-function renderAll() {
-    container.innerHTML = "";
-    expenses.forEach(exp => createExpenseCard(exp));
-    updateStats();
-}
-
-function saveData() {
-    localStorage.setItem("expenses", JSON.stringify(expenses));
-}
-
+/* ================= TILT EFFECT ================= */
 function addTilt(card) {
     card.addEventListener("mousemove", (e) => {
         const rect = card.getBoundingClientRect();
@@ -134,11 +155,13 @@ function addTilt(card) {
         const rotateY = (x - rect.width / 2) / 15;
         card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
     });
+
     card.addEventListener("mouseleave", () => {
         card.style.transform = "rotateX(0) rotateY(0)";
     });
 }
 
+/* ================= CHART ================= */
 function updateChart(paid, unpaid) {
     const canvas = document.getElementById("expenseChart");
     const ctx = canvas.getContext("2d");

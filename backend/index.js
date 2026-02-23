@@ -7,11 +7,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-mongoose.connect("mongodb://127.0.0.1:27017/expenseDB", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
+// mongodb+srv://DharaniselviMoorthi:dharani31@cluster0.v2jzapg.mongodb.net/expenseDB?appName=Cluster0
+mongoose.connect("mongodb+srv://DharaniselviMoorthi:dharani31@cluster0.v2jzapg.mongodb.net/expenseDB?appName=Cluster0")
 .then(() => console.log("MongoDB Connected ✅"))
 .catch(err => console.log("Mongo Error ❌:", err));
 
@@ -70,6 +67,6 @@ app.delete("/expenses/:id", async (req, res) => {
 
 /* Start Server */
 
-app.listen(PORT, () => {
+app.listen(3000, () => {
     console.log(`Server running on http://localhost:3000 🚀`);
 });
