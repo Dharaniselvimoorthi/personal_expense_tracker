@@ -1,6 +1,5 @@
-//const API = "https://your-backend-url.onrender.com/expenses";
-// If local testing use:
- const API = "https://personal-expense-tracker-backend-e8br.onrender.com/expenses";
+// ================= API =================
+const API = "https://personal-expense-tracker-backend-e8br.onrender.com/expenses";
 
 const nameInput = document.getElementById("name");
 const amountInput = document.getElementById("amount");
@@ -22,18 +21,19 @@ async function fetchExpenses() {
 
     } catch (err) {
         console.error("Fetch error:", err);
+        showToast("Server Error ❌");
     }
 }
 
 /* ================= ADD ================= */
 async function addExpense() {
-    const name = nameInput.value;
+    const name = nameInput.value.trim();
     const amount = amountInput.value;
     const category = categoryInput.value;
     const date = dateInput.value;
 
     if (!name || !amount || !category || !date) {
-        alert("Fill all fields");
+        showToast("Fill all fields ⚠");
         return;
     }
 
@@ -52,15 +52,18 @@ async function addExpense() {
         nameInput.value = "";
         amountInput.value = "";
 
+        showToast("Expense Added ✅");
         fetchExpenses();
 
     } catch (err) {
         console.error("Add error:", err);
+        showToast("Add Failed ❌");
     }
 }
 
 /* ================= CREATE CARD ================= */
 function createExpenseCard(exp) {
+
     const card = document.createElement("div");
     card.className = "expense-card";
 
@@ -68,10 +71,10 @@ function createExpenseCard(exp) {
     h3.textContent = exp.name;
 
     const pAmount = document.createElement("p");
-    pAmount.textContent = `₹ ${exp.amount}`;
+    pAmount.innerHTML = `<strong>₹ ${exp.amount}</strong>`;
 
     const pCat = document.createElement("p");
-    pCat.textContent = exp.category;
+    pCat.textContent = "Category: " + exp.category;
 
     const pDate = document.createElement("p");
     pDate.textContent = exp.date;
@@ -83,30 +86,51 @@ function createExpenseCard(exp) {
     /* ===== TOGGLE PAID ===== */
     const toggleBtn = document.createElement("button");
     toggleBtn.textContent = "Toggle Paid";
-    toggleBtn.onclick = async () => {
-        await fetch(`${API}/${exp._id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paid: !exp.paid })
-        });
 
-        fetchExpenses();
+    toggleBtn.onclick = async () => {
+        try {
+            await fetch(`${API}/${exp._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ paid: !exp.paid })
+            });
+
+            // 🎉 CONFETTI WHEN BECOMES PAID
+            if (!exp.paid) {
+                launchConfetti();
+            }
+
+            showToast("Status Updated 🔄");
+            fetchExpenses();
+
+        } catch {
+            showToast("Update Failed ❌");
+        }
     };
 
     /* ===== DELETE ===== */
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "Delete";
+    deleteBtn.style.background = "linear-gradient(45deg,#ff4d6d,#ff0000)";
+    deleteBtn.style.color = "white";
+
     deleteBtn.onclick = async () => {
 
         card.style.transform = "scale(0)";
         card.style.opacity = "0";
 
         setTimeout(async () => {
-            await fetch(`${API}/${exp._id}`, {
-                method: "DELETE"
-            });
+            try {
+                await fetch(`${API}/${exp._id}`, {
+                    method: "DELETE"
+                });
 
-            fetchExpenses();
+                showToast("Deleted 🗑");
+                fetchExpenses();
+
+            } catch {
+                showToast("Delete Failed ❌");
+            }
         }, 300);
     };
 
@@ -117,7 +141,9 @@ function createExpenseCard(exp) {
         pAmount,
         pCat,
         pDate,
+        document.createElement("br"),
         badge,
+        document.createElement("br"),
         document.createElement("br"),
         toggleBtn,
         deleteBtn
@@ -128,6 +154,7 @@ function createExpenseCard(exp) {
 
 /* ================= UPDATE STATS ================= */
 function updateStats(expenses) {
+
     let total = 0;
     let paid = 0;
     let unpaid = 0;
@@ -138,11 +165,30 @@ function updateStats(expenses) {
         else unpaid += exp.amount;
     });
 
-    document.getElementById("totalAmount").innerText = total;
-    document.getElementById("paidAmount").innerText = paid;
-    document.getElementById("unpaidAmount").innerText = unpaid;
+    animateValue("totalAmount", total);
+    animateValue("paidAmount", paid);
+    animateValue("unpaidAmount", unpaid);
 
     updateChart(paid, unpaid);
+}
+
+/* ================= COUNT ANIMATION ================= */
+function animateValue(id, value) {
+    const el = document.getElementById(id);
+    let start = 0;
+    const duration = 800;
+    const stepTime = 20;
+    const increment = value / (duration / stepTime);
+
+    const counter = setInterval(() => {
+        start += increment;
+        if (start >= value) {
+            el.innerText = value;
+            clearInterval(counter);
+        } else {
+            el.innerText = Math.floor(start);
+        }
+    }, stepTime);
 }
 
 /* ================= TILT EFFECT ================= */
@@ -151,33 +197,114 @@ function addTilt(card) {
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const rotateX = -(y - rect.height / 2) / 15;
-        const rotateY = (x - rect.width / 2) / 15;
-        card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        const rotateX = -(y - rect.height / 2) / 18;
+        const rotateY = (x - rect.width / 2) / 18;
+        card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.03)`;
     });
 
     card.addEventListener("mouseleave", () => {
-        card.style.transform = "rotateX(0) rotateY(0)";
+        card.style.transform = "rotateX(0) rotateY(0) scale(1)";
     });
 }
 
-/* ================= CHART ================= */
+/* ================= SMOOTH BAR CHART ================= */
 function updateChart(paid, unpaid) {
+
     const canvas = document.getElementById("expenseChart");
     const ctx = canvas.getContext("2d");
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "#00ff88";
-    ctx.fillRect(100, 250 - paid / 5, 100, paid / 5);
+    const max = Math.max(paid, unpaid, 1);
+    const chartHeight = 200;
 
-    ctx.fillStyle = "#ff4d6d";
-    ctx.fillRect(300, 250 - unpaid / 5, 100, unpaid / 5);
+    const paidHeight = (paid / max) * chartHeight;
+    const unpaidHeight = (unpaid / max) * chartHeight;
+
+    let progress = 0;
+
+    function animateBars() {
+        progress += 4;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#00ff88";
+        ctx.fillRect(120, 250 - (paidHeight * progress / 100), 120, (paidHeight * progress / 100));
+
+        ctx.fillStyle = "#ff4d6d";
+        ctx.fillRect(350, 250 - (unpaidHeight * progress / 100), 120, (unpaidHeight * progress / 100));
+
+        if (progress < 100) {
+            requestAnimationFrame(animateBars);
+        }
+    }
+
+    animateBars();
 }
 
+/* ================= TOAST ================= */
+function showToast(message) {
+    let toast = document.createElement("div");
+    toast.className = "toast";
+    toast.innerText = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add("show"), 100);
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => document.body.removeChild(toast), 400);
+    }, 2500);
+}
+
+/* ================= CONFETTI ================= */
+function launchConfetti() {
+
+    const colors = ["#00ff88", "#00ffff", "#ffffff", "#ff4d6d", "#ffd700"];
+
+    for (let i = 0; i < 80; i++) {
+        const confetti = document.createElement("div");
+        confetti.className = "confetti-piece";
+        document.body.appendChild(confetti);
+
+        const size = Math.random() * 8 + 6;
+        confetti.style.width = size + "px";
+        confetti.style.height = size + "px";
+        confetti.style.background =
+            colors[Math.floor(Math.random() * colors.length)];
+
+        confetti.style.position = "fixed";
+        confetti.style.top = "-10px";
+        confetti.style.left = Math.random() * window.innerWidth + "px";
+        confetti.style.borderRadius = "3px";
+        confetti.style.zIndex = "9999";
+
+        const duration = Math.random() * 3 + 2;
+
+        confetti.animate(
+            [
+                { transform: "translateY(0) rotate(0deg)", opacity: 1 },
+                {
+                    transform: `translateY(${window.innerHeight}px) rotate(${Math.random() * 720}deg)`,
+                    opacity: 0
+                }
+            ],
+            {
+                duration: duration * 1000,
+                easing: "ease-out"
+            }
+        );
+
+        setTimeout(() => confetti.remove(), duration * 1000);
+    }
+}
+
+/* ================= THEME ================= */
 function toggleTheme() {
     document.body.classList.toggle("dark-mode");
 }
 
+/* ================= EXPORT ================= */
 function exportPDF() {
     window.print();
 }
