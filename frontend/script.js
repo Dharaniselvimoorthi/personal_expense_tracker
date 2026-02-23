@@ -1,6 +1,6 @@
 //const API = "https://your-backend-url.onrender.com/expenses";
 // If local testing use:
- const API = "http://localhost:3000/expenses";
+ const API = "https://personal-expense-tracker-backend-e8br.onrender.com/expenses";
 
 const nameInput = document.getElementById("name");
 const amountInput = document.getElementById("amount");
